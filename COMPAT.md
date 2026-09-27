@@ -25,7 +25,6 @@
 - **React Native** — Needs a `crypto.getRandomValues` polyfill (`react-native-get-random-values`) loaded before the SDK, plus `Buffer` if the app imports `@stellar/stellar-sdk` directly. `installReactNativePolyfills()` covers `atob`, `btoa`, `TextEncoder` and `TextDecoder`.
 - **Deno** — Use npm specifiers. Verified by static review only — the compat job does not provision a Deno runtime yet.
 - **Cloudflare Workers / Vercel Edge** — The browser bundle check covers the same module graph. Optional peers must be bundled explicitly when the edge entry point you use needs them.
-
 <!-- compat:runtimes:end -->
 
 ## Dependency ranges
@@ -45,7 +44,6 @@ Peer dependencies are optional on purpose: an app that only uses `@wraith-protoc
 - **`@stellar/stellar-sdk`** — Required by `./chains/stellar`: the transaction builders, event filters and announcement parsing are re-exported from that entry point. Marked optional so apps that only use the EVM, CKB, Solana or vault entry points are not forced to install it.
 - **`@solana/web3.js`** — Only `fetchAnnouncements()` needs it, and it imports the package dynamically on demand. Address derivation and scanning use the in-tree base58 encoder, so importing `./chains/solana` — or the package root — works without this peer installed.
 - **`viem`** — A regular dependency, not a peer: the EVM and CKB modules use its hex and keccak helpers, and the wallet event normalizer uses `getAddress`. Bundled with the package, so consumers never install it separately.
-
 <!-- compat:peers:end -->
 
 ## Unsupported combinations and failure messages
