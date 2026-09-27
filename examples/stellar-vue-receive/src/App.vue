@@ -164,7 +164,8 @@ const replacer = (_: string, v: unknown) => (v instanceof Uint8Array ? Array.fro
           "
           @click="copyToClipboard(metaAddress)"
           title="Click to copy"
-          >{{ metaAddress }}</pre>
+          >{{ metaAddress }}</pre
+        >
         <p style="font-size: 13px; color: #666">
           Click the meta-address above to copy it. Share this with anyone who wants to send you
           stealth payments.

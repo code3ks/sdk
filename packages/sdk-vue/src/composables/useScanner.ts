@@ -31,7 +31,9 @@ async function collectStream<T>(stream: AsyncGenerator<T>): Promise<T[]> {
 
 export type AnyAnnouncement = EvmAnnouncement | StellarAnnouncement | SolanaAnnouncement;
 export type AnyMatchedAnnouncement =
-  EvmMatchedAnnouncement | StellarMatchedAnnouncement | SolanaMatchedAnnouncement;
+  | EvmMatchedAnnouncement
+  | StellarMatchedAnnouncement
+  | SolanaMatchedAnnouncement;
 
 export function useScanner(chain?: StealthChain) {
   const activeChain = ref<StealthChain>(chain ?? 'stellar');

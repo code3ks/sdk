@@ -9,7 +9,11 @@ export {
   VIEW_TAG_BUCKET_COUNT,
   META_ADDRESS_PREFIX,
 } from './constants';
-export type { StellarStealthSigner, FreighterLikeWallet, WebAuthnPasskeyStealthSignerOptions } from './signer';
+export type {
+  StellarStealthSigner,
+  FreighterLikeWallet,
+  WebAuthnPasskeyStealthSignerOptions,
+} from './signer';
 export { FreighterStealthSigner, WebAuthnPasskeyStealthSigner } from './signer';
 export { encodeStealthMetaAddress, decodeStealthMetaAddress } from './meta-address';
 export {
