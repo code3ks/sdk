@@ -71,5 +71,4 @@ export type PopupMessage =
   | { type: 'disconnect' };
 
 export type WorkerResponse =
-  | { ok: true; state?: ScanState; wallet?: ConnectedWallet | null }
-  | { ok: false; error: string };
+  { ok: true; state?: ScanState; wallet?: ConnectedWallet | null } | { ok: false; error: string };

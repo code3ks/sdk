@@ -29,9 +29,7 @@ export type StealthChain = 'evm' | 'stellar' | 'solana';
 
 export type AnyStealthKeys = EvmStealthKeys | StellarStealthKeys | SolanaStealthKeys;
 export type AnyGeneratedStealthAddress =
-  | EvmGeneratedAddress
-  | StellarGeneratedAddress
-  | SolanaGeneratedAddress;
+  EvmGeneratedAddress | StellarGeneratedAddress | SolanaGeneratedAddress;
 
 export function useStealthKeys(chain?: StealthChain) {
   const activeChain = ref<StealthChain>(chain ?? 'stellar');
