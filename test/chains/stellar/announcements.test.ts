@@ -354,3 +354,173 @@ describe('fetchAnnouncementsStream', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(3); // first page only
   });
 });
+
+// ---------------------------------------------------------------------------
+// Cross-chunk deduplication tests
+// ---------------------------------------------------------------------------
+
+describe('cross-chunk deduplication', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = mockFetchSequence([]);
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeEventWithIdentity(txHash: string, ledger: number, idx: number) {
+    return {
+      id: `provider-specific-id-${idx}`,
+      txHash,
+      ledger,
+      contractId: 'CTEST123',
+      topic: [`topic0_${idx}`, `topic1_${idx}`, `topic2_${idx}`],
+      value: `value_${idx}`,
+    };
+  }
+
+  test('deduplicates identical events across multiple pages', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
+
+    // Same event appearing in two pages with different provider IDs
+    const duplicateEvent = makeEventWithIdentity('duplicate-tx', 100, 0);
+    const page1 = { result: { events: [duplicateEvent], cursor: 'cursor-1' } };
+    const page2 = { result: { events: [{ ...duplicateEvent, id: 'different-provider-id' }] } };
+
+    fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, page1, page2]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
+
+    // Should only get 1 announcement, not 2
+    expect(results).toHaveLength(1);
+  });
+
+  test('accepts seenEventIds to skip previously processed events', async () => {
+    const { fetchAnnouncementsStream, computeEventIdentity } =
+      await import('../../../src/chains/stellar/announcements');
+
+    const event1 = makeEventWithIdentity('tx1', 100, 1);
+    const event2 = makeEventWithIdentity('tx2', 100, 2);
+    const event3 = makeEventWithIdentity('tx3', 100, 3);
+
+    // Compute identity for event1 to simulate it was seen in a previous chunk
+    const identity1 = computeEventIdentity(event1);
+    const seenIds = new Set<string>();
+    if (identity1) seenIds.add(identity1.id);
+
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      { result: { events: [event1, event2, event3] } },
+    ]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const results = await collectStream(
+      fetchAnnouncementsStream('stellar', { includeV2: false, seenEventIds: seenIds }),
+    );
+
+    // Should only get 2 announcements (event2 and event3), event1 was filtered
+    expect(results).toHaveLength(2);
+  });
+
+  test('accumulates seen events across streaming pages', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
+
+    const event1 = makeEventWithIdentity('tx1', 100, 1);
+    const event2 = makeEventWithIdentity('tx2', 100, 2);
+
+    // event1 appears in both pages
+    const page1 = { result: { events: [event1, event2], cursor: 'cursor-1' } };
+    const page2 = { result: { events: [event1] } };
+
+    fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, page1, page2]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const results = await collectStream(fetchAnnouncementsStream('stellar', { includeV2: false }));
+
+    // Should only get 2 unique announcements, even though event1 appeared twice
+    expect(results).toHaveLength(2);
+  });
+
+  test('handles v1 and v2 events with separate identities', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
+
+    // Same txHash but different topics (v1 vs v2)
+    const v1Event = {
+      id: 'v1-id',
+      txHash: 'shared-tx',
+      ledger: 100,
+      contractId: 'CTEST',
+      topic: ['v1-topic-1', 'v1-topic-2', 'v1-topic-3'],
+      value: 'v1-value',
+    };
+
+    const v2Event = {
+      id: 'v2-id',
+      txHash: 'shared-tx',
+      ledger: 100,
+      contractId: 'CTEST',
+      topic: ['v2-topic-1', 'v2-topic-2', 'v2-topic-3', 'v2-topic-4'],
+      value: 'v2-value',
+    };
+
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      { result: { events: [v1Event, v2Event] } },
+    ]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const results = await collectStream(fetchAnnouncementsStream('stellar'));
+
+    // Both events should be included since they have different identities
+    expect(results).toHaveLength(2);
+  });
+
+  test('deduplicates across filter group boundaries', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
+
+    const sharedEvent = makeEventWithIdentity('shared-tx', 100, 0);
+
+    // Same event in both v1 and v2 filter groups
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      { result: { events: [sharedEvent] } }, // v1 filter
+      { result: { events: [sharedEvent] } }, // v2 filter
+    ]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const results = await collectStream(fetchAnnouncementsStream('stellar'));
+
+    // Should only get 1 announcement despite appearing in both filter groups
+    expect(results).toHaveLength(1);
+  });
+
+  test('maintains deduplication state when using viewTagBuckets', async () => {
+    const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
+
+    const event1 = makeEventWithIdentity('tx1', 100, 1);
+    const event2 = makeEventWithIdentity('tx2', 100, 2);
+
+    // Simulate event1 appearing in multiple bucket queries
+    fetchSpy = mockFetchSequence([
+      makeProbeSuccess(),
+      { result: { sequence: 100 } },
+      { result: { events: [event1] } }, // bucket 0
+      { result: { events: [event1, event2] } }, // bucket 1 (overlaps with bucket 0)
+    ]);
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const results = await collectStream(
+      fetchAnnouncementsStream('stellar', { viewTagBuckets: [0, 1] }),
+    );
+
+    // Should get 2 unique events, not 3
+    expect(results).toHaveLength(2);
+  });
+});

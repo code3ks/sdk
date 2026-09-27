@@ -47,8 +47,9 @@ export {
   fetchAnnouncementsStream,
   RetentionExceededError,
   parseAnnouncementEvent,
+  computeEventIdentity,
 } from './announcements';
-export type { FetchAnnouncementsOptions } from './announcements';
+export type { FetchAnnouncementsOptions, EventIdentity } from './announcements';
 export { MemoryCache, IndexedDBCache, autoSelectCache } from './cache';
 export type { AnnouncementCache } from './cache';
 

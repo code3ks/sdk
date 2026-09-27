@@ -4,6 +4,15 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
 
 ## Upcoming: 2.0.0
 
+### Added
+
+- **Deterministic Event Identity and Cross-Chunk Deduplication**: Introduced stable event identity computation for Stellar announcements (#211). Breaking changes:
+  - Added `EventIdentity` interface and `computeEventIdentity()` function to compute deterministic event IDs from chain, transaction, ledger, contract, and topic data.
+  - Event identity is now independent of provider-specific event IDs, ensuring consistent deduplication across RPC providers and pagination boundaries.
+  - Added `seenEventIds` option to `FetchAnnouncementsOptions` to support cross-chunk deduplication by passing previously seen event identity hashes.
+  - Deduplication now uses deterministic SHA-256 hashes instead of provider-specific IDs or serialized topics.
+  - Exposed event identity metadata for callers to persist deduplication state across multiple scan sessions.
+
 ### Changed
 
 - **Stellar Chain Module Cryptographic Audit Fixes**: Applied all findings from independent cryptographic audit (issue #55). Breaking changes:

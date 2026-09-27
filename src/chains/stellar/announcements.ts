@@ -9,6 +9,27 @@ import {
   type SorobanEventFilter,
 } from './event-filters';
 import { Address, xdr } from '@stellar/stellar-sdk';
+import { sha256 } from '@noble/hashes/sha256';
+
+/**
+ * Deterministic event identity computed from chain, transaction, ledger,
+ * contract, and topic data. Independent of provider event IDs.
+ *
+ * This identity can be used to deduplicate events across multiple scans,
+ * pages, and RPC providers.
+ */
+export interface EventIdentity {
+  /** Hex-encoded SHA-256 hash of canonical event fields. */
+  id: string;
+  /** Transaction hash containing this event. */
+  txHash: string;
+  /** Ledger sequence number. */
+  ledger: number;
+  /** Contract ID that emitted the event. */
+  contractId: string;
+  /** Canonical hex encoding of the event topics. */
+  topicsHash: string;
+}
 
 export interface FetchAnnouncementsOptions {
   /** Earliest ledger to include, inclusive. Ignored when cursor is provided. */
@@ -32,6 +53,11 @@ export interface FetchAnnouncementsOptions {
   includeV2?: boolean;
   /** Override the Soroban RPC URL. */
   sorobanUrl?: string;
+  /**
+   * Set of previously-seen event identity hashes to skip (for cross-chunk deduplication).
+   * Callers can persist EventIdentity.id values and pass them here to avoid duplicates.
+   */
+  seenEventIds?: Set<string>;
 }
 
 export class RetentionExceededError extends Error {
@@ -46,6 +72,44 @@ export class RetentionExceededError extends Error {
     this.requestedLedger = requestedLedger;
     this.oldestAvailableLedger = oldestAvailableLedger;
   }
+}
+
+/**
+ * Computes a deterministic event identity from chain, transaction, event index,
+ * and contract data. This identity is stable across RPC providers and pagination
+ * boundaries.
+ *
+ * @param event Soroban RPC event object
+ * @returns EventIdentity with deterministic id hash
+ *
+ * @internal Exported for testing
+ */
+export function computeEventIdentity(event: Record<string, unknown>): EventIdentity | null {
+  const txHash = event.txHash as string | undefined;
+  const ledger = eventLedger(event);
+  const contractId =
+    (event.contractId as string | undefined) || (event.contract_id as string | undefined);
+  const topic = event.topic as unknown[] | undefined;
+
+  if (!txHash || ledger === undefined || !contractId || !topic) {
+    return null;
+  }
+
+  // Create a canonical representation of topics by sorting and joining
+  // to ensure consistency regardless of provider serialization
+  const topicsHash = sha256(new TextEncoder().encode(JSON.stringify(topic)));
+
+  // Compute deterministic identity: hash(chain, txHash, ledger, contractId, topicsHash)
+  const canonical = `stellar:${txHash}:${ledger}:${contractId}:${bytesToHex(topicsHash)}`;
+  const id = bytesToHex(sha256(new TextEncoder().encode(canonical)));
+
+  return {
+    id,
+    txHash,
+    ledger,
+    contractId,
+    topicsHash: bytesToHex(topicsHash),
+  };
 }
 
 /**
@@ -98,7 +162,7 @@ export async function* fetchAnnouncementsStream(
   }
 
   let cursor = opts?.cursor;
-  const seen = new Set<string>();
+  const seen = opts?.seenEventIds ?? new Set<string>();
   const singleFilterGroup = filterGroups.length === 1;
 
   for (const filters of filterGroups) {
@@ -146,9 +210,12 @@ export async function* fetchAnnouncementsStream(
           continue;
         }
 
-        const dedupeKey = String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
-        if (seen.has(dedupeKey)) continue;
-        seen.add(dedupeKey);
+        // Use deterministic event identity instead of provider IDs
+        const identity = computeEventIdentity(event);
+        if (!identity) continue;
+
+        if (seen.has(identity.id)) continue;
+        seen.add(identity.id);
 
         const ann = parseAnnouncementEvent(event);
         if (ann) yield ann;
