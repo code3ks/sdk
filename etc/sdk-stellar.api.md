@@ -6,17 +6,11 @@
 
 import { Asset } from '@stellar/stellar-sdk';
 import { ExtPointType } from '@noble/curves/abstract/edwards';
-import { Horizon } from '@stellar/stellar-sdk';
-import { Keypair } from '@stellar/stellar-sdk';
 import { Memo } from '@stellar/stellar-sdk';
 import { Operation } from '@stellar/stellar-sdk';
 import * as _stellar_stellar_sdk from '@stellar/stellar-sdk';
-import { Transaction } from '@stellar/stellar-sdk';
 import { TransactionBuilder } from '@stellar/stellar-sdk';
 import { xdr } from '@stellar/stellar-sdk';
-
-// @public
-export function addStealthMultisigSigner(tx: Transaction, signerKey: Keypair | string): Transaction;
 
 // @public
 export const ANNOUNCE_EVENT_SYMBOL = "announce";
@@ -50,41 +44,6 @@ export interface AnnouncementCache {
 export function assertViewTagBucket(bucket: number): void;
 
 // @public
-export interface AssetMetadata {
-    decimals: number;
-    name: string;
-    symbol: string;
-}
-
-// @public
-export interface AssetMetadataFailure {
-    field: AssetMetadataField;
-    message: string;
-    reason: AssetMetadataFailureReason;
-}
-
-// @public
-export type AssetMetadataFailureReason = 'missing' | 'invalid' | 'rpc-error';
-
-// @public
-export type AssetMetadataField = 'name' | 'symbol' | 'decimals';
-
-// @public
-export type AssetMetadataResult = {
-    status: 'complete';
-    metadata: AssetMetadata;
-    failures: readonly AssetMetadataFailure[];
-} | {
-    status: 'partial';
-    metadata: Partial<AssetMetadata>;
-    failures: readonly AssetMetadataFailure[];
-} | {
-    status: 'unsupported';
-    metadata: Partial<AssetMetadata>;
-    failures: readonly AssetMetadataFailure[];
-};
-
-// @public
 export interface AssetReceivabilityResult {
     hasTrustline: boolean;
     issuerAuthRequired: boolean;
@@ -104,15 +63,6 @@ export interface BatchConfig {
 }
 
 // @public
-export function buildAnnouncementData(stealthAddresses: GeneratedStealthAddress[], caller: string): Array<{
-    schemeId: number;
-    stealthAddress: string;
-    caller: string;
-    ephemeralPubKey: string;
-    metadata: string;
-}>;
-
-// @public
 export interface BuildAnnouncementOptions {
     announcerContract: string;
     fee?: string;
@@ -120,47 +70,6 @@ export interface BuildAnnouncementOptions {
     sender: string;
     sequence: string;
     stealthResult: GeneratedStealthAddress;
-}
-
-// @public
-export function buildBatchSendTx(params: BuildBatchSendTxParams): BuildBatchSendTxResult;
-
-// @public
-export interface BuildBatchSendTxParams {
-    baseFee?: number;
-    batchSenderContract?: string;
-    batchSenderThreshold?: number;
-    maxOperations?: number;
-    memo?: string;
-    networkPassphrase: string;
-    payments: StealthPayment[];
-    sourceAccount: any;
-}
-
-// @public
-export interface BuildBatchSendTxResult {
-    stealthAddresses: GeneratedStealthAddress[];
-    totalFee: number;
-    transaction: any;
-    usedBatchSender: boolean;
-}
-
-// @public
-export function buildMultisigStealthWithdraw(options: BuildMultisigStealthWithdrawOptions): Promise<Transaction>;
-
-// @public (undocumented)
-export interface BuildMultisigStealthWithdrawOptions {
-    account?: Pick<Horizon.ServerApi.AccountRecord, 'sequence' | 'thresholds' | 'signers'>;
-    destination: string;
-    fee?: string;
-    horizonUrl?: string;
-    networkPassphrase: string;
-    requiredWeight?: number;
-    sequence?: string;
-    // Warning: (ae-forgotten-export) The symbol "WeightedSigner" needs to be exported by the entry point index.d.ts
-    signers: Array<string | WeightedSigner>;
-    stealthAddress: string;
-    timeout?: number;
 }
 
 // @public
@@ -265,22 +174,18 @@ export function checkStealthAddress(ephemeralPubKey: Uint8Array, viewingKey: Uin
 };
 
 // @public
-export function clearAssetMetadataCache(): void;
-
-// @public
 export function computeAnnouncementViewTag(ephemeralPubKey: Uint8Array, viewingPubKey: Uint8Array): number;
+
+// Warning: (ae-internal-missing-underscore) The name "computeEventIdentity" should be prefixed with an underscore because the declaration is marked as @internal
+//
+// @internal
+export function computeEventIdentity(event: Record<string, unknown>): EventIdentity | null;
 
 // @public
 export function computeSharedSecret(privateKey: Uint8Array, publicKey: Uint8Array): Uint8Array;
 
 // @public @deprecated
 export function computeViewTag(sharedSecret: Uint8Array): number;
-
-// @public (undocumented)
-export function createHorizonClient(config: HorizonClientConfig): HorizonClient;
-
-// @public (undocumented)
-export function createRpcClient(config: RpcClientConfig): RpcClient;
 
 // @public
 export function decodeAnnouncementData(data: Uint8Array): {
@@ -294,12 +199,6 @@ export function decodeMemo(memo: Memo | xdr.Memo): TypedMemo;
 
 // @public
 export function decodeStealthMetaAddress(metaAddress: string): StealthMetaAddress;
-
-// @public
-export const DEFAULT_BASE_FEE = 100;
-
-// @public
-export const DEFAULT_BATCH_SENDER_THRESHOLD = 10;
 
 // @public
 export const DEPLOYMENTS: Record<string, StellarChainDeployment>;
@@ -332,6 +231,15 @@ export function encodeSymbolTopic(symbol: string): string;
 export function encodeU32Topic(value: number): string;
 
 // @public
+export interface EventIdentity {
+    contractId: string;
+    id: string;
+    ledger: number;
+    topicsHash: string;
+    txHash: string;
+}
+
+// @public
 export function extractMemoFromTransaction(tx: {
     memo: Memo | xdr.Memo;
 }): TypedMemo;
@@ -343,7 +251,7 @@ export interface FetchAnnouncementsOptions {
     fromTimestamp?: Date;
     includeV1?: boolean;
     includeV2?: boolean;
-    parallelism?: number;
+    seenEventIds?: Set<string>;
     sorobanUrl?: string;
     toLedger?: number;
     toTimestamp?: Date;
@@ -391,26 +299,6 @@ export interface GeneratedStealthAddress {
 export function generateStealthAddress(spendingPubKey: Uint8Array, viewingPubKey: Uint8Array, ephemeralSeed?: Uint8Array): GeneratedStealthAddress;
 
 // @public
-export function getAssetBalance(contractId: string, address: string, network?: Network, opts?: GetAssetBalanceOptions): Promise<bigint>;
-
-// @public
-export interface GetAssetBalanceOptions {
-    rpcUrl?: string;
-}
-
-// @public
-export function getAssetMetadata(contractId: string, network?: Network, opts?: GetAssetMetadataOptions): Promise<AssetMetadata>;
-
-// @public
-export interface GetAssetMetadataOptions {
-    bypassCache?: boolean;
-    rpcUrl?: string;
-}
-
-// @public
-export function getAssetMetadataResult(contractId: string, network?: Network, opts?: GetAssetMetadataOptions): Promise<AssetMetadataResult>;
-
-// @public
 export function getDeployment(chain: string): StellarChainDeployment;
 
 // @public
@@ -424,26 +312,6 @@ export type HexString = `0x${string}`;
 
 // @public
 export function hexToBytes(hex: string): Uint8Array;
-
-// @public (undocumented)
-export interface HorizonClient {
-    get<T = unknown>(path: string, overrides?: HorizonRequestOptions): Promise<T>;
-    post<T = unknown>(path: string, body: URLSearchParams | string, overrides?: HorizonRequestOptions): Promise<T>;
-}
-
-// @public (undocumented)
-export interface HorizonClientConfig {
-    fetchImpl?: typeof fetch;
-    horizonUrl: string;
-    retry?: Partial<RetryPolicy>;
-    timeouts?: RequestTimeouts;
-}
-
-// @public
-export interface HorizonRequestOptions {
-    retry?: Partial<RetryPolicy>;
-    timeouts?: RequestTimeouts;
-}
 
 // @public
 export const ID_MEMO_MAX: bigint;
@@ -467,10 +335,8 @@ export class IndexedDBCache implements AnnouncementCache {
 }
 
 // @public
-export function isStealthMultisigReady(tx: Transaction): boolean;
-
-// @public
 export interface KeyDerivationOptions {
+    // Warning: (ae-forgotten-export) The symbol "Tracer" needs to be exported by the entry point index.d.ts
     tracer?: Tracer;
 }
 
@@ -544,12 +410,6 @@ export function prepareStealthAccountForAsset(accountBalances: Array<{
 // @public
 export function pubKeyToStellarAddress(pubKeyBytes: Uint8Array): string;
 
-// @public
-export interface RequestTimeouts {
-    connectMs?: number;
-    requestMs?: number;
-}
-
 // @public (undocumented)
 export class RetentionExceededError extends Error {
     constructor(requestedLedger: number, oldestAvailableLedger: number);
@@ -559,80 +419,11 @@ export class RetentionExceededError extends Error {
     readonly requestedLedger: number;
 }
 
-// @public (undocumented)
-export interface RetryPolicy {
-    baseDelayMs: number;
-    maxDelayMs: number;
-    maxRetries: number;
-    retryableStatuses: number[];
-}
-
-// @public (undocumented)
-export interface RpcClient {
-    // (undocumented)
-    getHealthyEndpoint(): string;
-    // (undocumented)
-    off(event: 'endpointFailover', listener: (detail: {
-        from: string;
-        to: string;
-        reason: string;
-    }) => void): void;
-    // (undocumented)
-    on(event: 'endpointFailover', listener: (detail: {
-        from: string;
-        to: string;
-        reason: string;
-    }) => void): void;
-    // (undocumented)
-    request<T = unknown>(method: string, path: string, body?: unknown, opts?: RpcRequestOptions): Promise<T>;
-}
-
-// @public (undocumented)
-export interface RpcClientConfig {
-    // (undocumented)
-    circuitBreaker?: {
-        failureThreshold: number;
-        cooldownMs: number;
-    };
-    // (undocumented)
-    endpoints: RpcEndpoint[];
-    // (undocumented)
-    fetchImpl?: typeof fetch;
-    // (undocumented)
-    healthCheckPath?: string;
-    // (undocumented)
-    retry?: {
-        maxRetries: number;
-        baseDelayMs: number;
-        maxDelayMs: number;
-    };
-    timeouts?: RequestTimeouts;
-    tracer?: Tracer;
-}
-
-// @public (undocumented)
-export interface RpcEndpoint {
-    // (undocumented)
-    url: string;
-}
-
-// @public
-export interface RpcRequestOptions {
-    timeouts?: RequestTimeouts;
-    tracer?: Tracer;
-}
-
 // @public @deprecated
 export function scanAnnouncements(announcements: Announcement[], viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint): MatchedAnnouncement[];
 
 // @public
 export function scanAnnouncementsLegacySharedSecretTag(announcements: Announcement[], viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint): MatchedAnnouncement[];
-
-// @public
-export function scanAnnouncementsStream(source: AsyncIterable<Announcement>, viewingKey: Uint8Array, spendingPubKey: Uint8Array, spendingScalar: bigint, opts?: {
-    window?: number;
-    tracer?: Tracer;
-}): AsyncGenerator<MatchedAnnouncement>;
 
 // @public
 export const SCHEME_ID = 1;
@@ -666,13 +457,6 @@ export interface SorobanEventFilter {
 export type SorobanTopicMatcher = string[];
 
 // @public
-export interface Span {
-    end(): void;
-    recordException(error: unknown): void;
-    setAttribute(key: string, value: string | number | boolean): void;
-}
-
-// @public
 export const STEALTH_SIGNING_MESSAGE = "Sign this message to generate your Wraith stealth keys.\n\nChain: Stellar\nNote: This signature is used for key derivation only and does not authorize any transaction.";
 
 // @public
@@ -692,12 +476,6 @@ export interface StealthMetaAddress {
     viewingPubKey: Uint8Array;
 }
 
-// @public
-export interface StealthPayment {
-    amount: string;
-    metaAddress: string;
-}
-
 // @public (undocumented)
 export interface StealthPaymentConfig {
     amount: string;
@@ -708,9 +486,6 @@ export interface StealthPaymentConfig {
     ephemeralPubKey: string;
     viewTag: number;
 }
-
-// @public
-export const STELLAR_MAX_OPERATIONS = 100;
 
 // @public
 export class StellarBatchBuilder {
@@ -757,11 +532,6 @@ export interface SwapAndStealthResult {
 export const TEXT_MEMO_MAX_BYTES = 28;
 
 // @public
-export interface Tracer {
-    startSpan(name: string, attributes?: Record<string, string | number | boolean>): Span;
-}
-
-// @public
 export interface TypedMemo {
     type: MemoType;
     value: MemoValue;
@@ -772,12 +542,6 @@ export const VIEW_TAG_BUCKET_COUNT = 256;
 
 // @public
 export function viewTagToBucket(viewTag: number): number;
-
-// @public
-export interface WebAuthnCredentialsContainer {
-    // (undocumented)
-    get(options: Record<string, unknown>): Promise<WebAuthnPRFAssertion | null>;
-}
 
 // Warning: (ae-forgotten-export) The symbol "StellarWalletAdapter" needs to be exported by the entry point index.d.ts
 //
@@ -796,21 +560,9 @@ export class WebAuthnPasskeyStealthSigner implements StellarStealthSigner, Stell
 export interface WebAuthnPasskeyStealthSignerOptions {
     address?: string;
     credentialId: Uint8Array;
+    // Warning: (ae-forgotten-export) The symbol "WebAuthnCredentialsContainer" needs to be exported by the entry point index.d.ts
     credentials?: WebAuthnCredentialsContainer;
     rpId?: string;
-}
-
-// @public
-export interface WebAuthnPRFAssertion {
-    // (undocumented)
-    getClientExtensionResults(): {
-        prf?: {
-            results?: {
-                first?: ArrayBuffer;
-                second?: ArrayBuffer;
-            };
-        };
-    };
 }
 
 // (No @packageDocumentation comment for this package)
