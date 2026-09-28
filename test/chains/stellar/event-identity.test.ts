@@ -13,6 +13,7 @@ describe('computeEventIdentity', () => {
 
   test('computes deterministic identity from complete event', () => {
     const event = {
+      id: '0000000100-0000000001',
       txHash: 'abc123',
       ledger: 100,
       contractId: 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4',
@@ -31,6 +32,7 @@ describe('computeEventIdentity', () => {
 
   test('produces identical identities for identical events', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -38,6 +40,7 @@ describe('computeEventIdentity', () => {
     };
 
     const event2 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -54,6 +57,7 @@ describe('computeEventIdentity', () => {
 
   test('produces different identities for events with different txHash', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -61,6 +65,7 @@ describe('computeEventIdentity', () => {
     };
 
     const event2 = {
+      id: '0000000200-0000000001',
       txHash: 'tx456',
       ledger: 200,
       contractId: 'CTEST',
@@ -75,6 +80,7 @@ describe('computeEventIdentity', () => {
 
   test('produces different identities for events with different ledger', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -82,6 +88,7 @@ describe('computeEventIdentity', () => {
     };
 
     const event2 = {
+      id: '0000000201-0000000001',
       txHash: 'tx123',
       ledger: 201,
       contractId: 'CTEST',
@@ -96,6 +103,7 @@ describe('computeEventIdentity', () => {
 
   test('produces different identities for events with different contractId', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST1',
@@ -103,6 +111,7 @@ describe('computeEventIdentity', () => {
     };
 
     const event2 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST2',
@@ -117,6 +126,7 @@ describe('computeEventIdentity', () => {
 
   test('produces different identities for events with different topics', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -124,6 +134,7 @@ describe('computeEventIdentity', () => {
     };
 
     const event2 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -138,6 +149,7 @@ describe('computeEventIdentity', () => {
 
   test('handles both contractId and contract_id field names', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -145,6 +157,7 @@ describe('computeEventIdentity', () => {
     };
 
     const event2 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contract_id: 'CTEST',
@@ -157,7 +170,9 @@ describe('computeEventIdentity', () => {
     expect(identity1?.id).toBe(identity2?.id);
   });
 
-  test('is independent of provider-specific event.id field', () => {
+  test('produces different identities for multiple events in same transaction', () => {
+    // Two announcements in the same transaction, same ledger, same contract, same topics
+    // but different event indices should have different identities
     const event1 = {
       id: '0000000100-0000000001',
       txHash: 'tx123',
@@ -177,8 +192,8 @@ describe('computeEventIdentity', () => {
     const identity1 = computeEventIdentity(event1);
     const identity2 = computeEventIdentity(event2);
 
-    // Same event, different provider IDs should produce same identity
-    expect(identity1?.id).toBe(identity2?.id);
+    // Different event indices within the same transaction should produce different identities
+    expect(identity1?.id).not.toBe(identity2?.id);
   });
 });
 
@@ -191,9 +206,9 @@ describe('cross-chunk deduplication', () => {
       topic: [encodeSymbolTopic('announce'), encodeU32Topic(SCHEME_ID_V2)],
     };
 
-    // Simulate same event appearing in two different RPC responses
+    // Simulate same event appearing in two different RPC responses with same event index
     const page1Event = { ...sharedEvent, id: '0000000100-0000000001' };
-    const page2Event = { ...sharedEvent, id: '0000000100-0000000999' };
+    const page2Event = { ...sharedEvent, id: '0000000100-0000000001' }; // Same event index
 
     const identity1 = computeEventIdentity(page1Event);
     const identity2 = computeEventIdentity(page2Event);
@@ -209,11 +224,9 @@ describe('cross-chunk deduplication', () => {
       topic: [encodeSymbolTopic('announce')],
     };
 
-    // Provider A response format
-    const providerA = { ...baseEvent, id: 'provider-a-00001' };
-
-    // Provider B response format (different ID format)
-    const providerB = { ...baseEvent, id: 'providerb:00001' };
+    // Same event with same event index from different providers
+    const providerA = { ...baseEvent, id: '0000000500-0000000003' };
+    const providerB = { ...baseEvent, id: '0000000500-0000000003' }; // Same ledger-index
 
     const identityA = computeEventIdentity(providerA);
     const identityB = computeEventIdentity(providerB);
@@ -229,11 +242,11 @@ describe('cross-chunk deduplication', () => {
       topic: [encodeSymbolTopic('announce'), encodeU32Topic(42)],
     };
 
-    // Multiple instances of the same event with different provider metadata
+    // Multiple instances of the same event (same event index) with different provider metadata
     const instances = [
-      { ...baseEvent, id: 'a' },
-      { ...baseEvent, id: 'b' },
-      { ...baseEvent, id: 'c' },
+      { ...baseEvent, id: '0000000300-0000000005' },
+      { ...baseEvent, id: '0000000300-0000000005' },
+      { ...baseEvent, id: '0000000300-0000000005' },
     ];
 
     const identities = instances.map(computeEventIdentity);
@@ -247,6 +260,7 @@ describe('cross-chunk deduplication', () => {
 describe('provider variations', () => {
   test('handles missing optional fields consistently', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -255,6 +269,7 @@ describe('provider variations', () => {
     };
 
     const event2 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -269,6 +284,7 @@ describe('provider variations', () => {
 
   test('topic order matters for identity', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -276,6 +292,7 @@ describe('provider variations', () => {
     };
 
     const event2 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -291,6 +308,7 @@ describe('provider variations', () => {
 
   test('handles numeric ledger field variants', () => {
     const event1 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: 200,
       contractId: 'CTEST',
@@ -298,6 +316,7 @@ describe('provider variations', () => {
     };
 
     const event2 = {
+      id: '0000000200-0000000001',
       txHash: 'tx123',
       ledger: '200',
       contractId: 'CTEST',

@@ -373,7 +373,7 @@ describe('cross-chunk deduplication', () => {
 
   function makeEventWithIdentity(txHash: string, ledger: number, idx: number) {
     return {
-      id: `provider-specific-id-${idx}`,
+      id: `${String(ledger).padStart(10, '0')}-${String(idx).padStart(10, '0')}`,
       txHash,
       ledger,
       contractId: 'CTEST123',
@@ -385,10 +385,11 @@ describe('cross-chunk deduplication', () => {
   test('deduplicates identical events across multiple pages', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    // Same event appearing in two pages with different provider IDs
-    const duplicateEvent = makeEventWithIdentity('duplicate-tx', 100, 0);
+    // Same event appearing in two pages with different provider IDs - but same ledger-eventIndex
+    const duplicateEvent = makeEventWithIdentity('duplicate-tx', 100, 1);
     const page1 = { result: { events: [duplicateEvent], cursor: 'cursor-1' } };
-    const page2 = { result: { events: [{ ...duplicateEvent, id: 'different-provider-id' }] } };
+    // Same id means same event (ledger-eventIndex format)
+    const page2 = { result: { events: [{ ...duplicateEvent }] } };
 
     fetchSpy = mockFetchSequence([makeProbeSuccess(), { result: { sequence: 100 } }, page1, page2]);
     vi.stubGlobal('fetch', fetchSpy);
@@ -449,9 +450,9 @@ describe('cross-chunk deduplication', () => {
   test('handles v1 and v2 events with separate identities', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    // Same txHash but different topics (v1 vs v2)
+    // Same txHash but different topics (v1 vs v2) and different event indices
     const v1Event = {
-      id: 'v1-id',
+      id: '0000000100-0000000001',
       txHash: 'shared-tx',
       ledger: 100,
       contractId: 'CTEST',
@@ -460,7 +461,7 @@ describe('cross-chunk deduplication', () => {
     };
 
     const v2Event = {
-      id: 'v2-id',
+      id: '0000000100-0000000002',
       txHash: 'shared-tx',
       ledger: 100,
       contractId: 'CTEST',
@@ -484,9 +485,9 @@ describe('cross-chunk deduplication', () => {
   test('deduplicates across filter group boundaries', async () => {
     const { fetchAnnouncementsStream } = await import('../../../src/chains/stellar/announcements');
 
-    const sharedEvent = makeEventWithIdentity('shared-tx', 100, 0);
+    const sharedEvent = makeEventWithIdentity('shared-tx', 100, 1);
 
-    // Same event in both v1 and v2 filter groups
+    // Same event in both v1 and v2 filter groups (same ledger-eventIndex)
     fetchSpy = mockFetchSequence([
       makeProbeSuccess(),
       { result: { sequence: 100 } },
