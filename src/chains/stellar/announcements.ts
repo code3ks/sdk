@@ -330,12 +330,15 @@ async function* fetchAnnouncementsRange(
           continue;
         }
 
-        // Use deterministic event identity for deduplication
+        // Use deterministic event identity for deduplication; fall back to
+        // the provider event id if fields needed for a stable identity are absent
         const identity = computeEventIdentity(event);
-        if (!identity) continue;
+        const dedupeKey = identity
+          ? identity.id
+          : String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
 
-        if (seen.has(identity.id)) continue;
-        seen.add(identity.id);
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
 
         const ann = parseAnnouncementEvent(event, { endpoint: sorobanUrl });
         if (ann && ledger !== undefined) {
@@ -543,12 +546,15 @@ export async function* fetchAnnouncementsStream(
           continue;
         }
 
-        // Use deterministic event identity for deduplication
+        // Use deterministic event identity for deduplication; fall back to
+        // the provider event id if fields needed for a stable identity are absent
         const identity = computeEventIdentity(event);
-        if (!identity) continue;
+        const dedupeKey = identity
+          ? identity.id
+          : String(event.id ?? `${event.txHash}:${JSON.stringify(event.topic)}`);
 
-        if (seen.has(identity.id)) continue;
-        seen.add(identity.id);
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
 
         const ann = parseAnnouncementEvent(event, { endpoint: sorobanUrl });
         if (ann) yield ann;
