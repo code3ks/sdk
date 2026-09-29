@@ -729,6 +729,8 @@ export interface StealthMetaAddress {
 // @public
 export interface StealthPayment {
     amount: string;
+    asset?: string;
+    assetIssuer?: string;
     metaAddress: string;
 }
 

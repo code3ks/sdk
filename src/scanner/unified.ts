@@ -44,7 +44,12 @@ export const UNKNOWN_TIMESTAMP = 0;
  * @template TMatched - Matched announcement output type.
  * @template TMetaAddress - Decoded stealth meta-address representation.
  */
-export interface ChainScannerAdapter<TItem = any, TKeys = any, TMatched = any, TMetaAddress = any> {
+export interface ChainScannerAdapter<
+  TItem = unknown,
+  TKeys = unknown,
+  TMatched = unknown,
+  TMetaAddress = unknown,
+> {
   /** Unique string identifier for the chain adapter (e.g., 'evm', 'stellar', 'monero'). */
   id: string;
 
@@ -69,7 +74,7 @@ export interface ChainScannerAdapter<TItem = any, TKeys = any, TMatched = any, T
    * @param spendingPubKey - Public key used for spending derivation.
    * @param viewingPubKey - Public key used for viewing/ECDH derivation.
    */
-  encodeMetaAddress(spendingPubKey: any, viewingPubKey: any): string;
+  encodeMetaAddress(spendingPubKey: unknown, viewingPubKey: unknown): string;
 
   /**
    * Returns the chain time of a matched result, in whole seconds since the Unix
@@ -97,9 +102,14 @@ export interface ChainScannerAdapter<TItem = any, TKeys = any, TMatched = any, T
 /**
  * Input configuration for a custom third-party chain scanner adapter.
  */
-export interface CustomChainInput<TItem = any, TKeys = any, TMatched = any> {
+export interface CustomChainInput<
+  TItem = unknown,
+  TKeys = unknown,
+  TMatched = unknown,
+  TMetaAddress = unknown,
+> {
   /** Chain scanner adapter instance. */
-  adapter: ChainScannerAdapter<TItem, TKeys, TMatched, any>;
+  adapter: ChainScannerAdapter<TItem, TKeys, TMatched, TMetaAddress>;
   /** Async iterable stream of raw announcements/cells. */
   source: AsyncIterable<TItem>;
   /** Recipient key material required for scanning. */
@@ -139,7 +149,7 @@ export interface ScanAllInput {
   stellar?: StellarChainInput;
   solana?: SolanaChainInput;
   ckb?: CkbChainInput;
-  adapters?: Array<CustomChainInput<any, any, any> | any>;
+  adapters?: Array<CustomChainInput<unknown, unknown, unknown, unknown>>;
 }
 
 export type MatchedAnnouncement =
@@ -168,10 +178,12 @@ export type MatchedAnnouncement =
       announcement: CkbMatchedCell;
     }
   | {
-      chain: string;
+      chain: 'custom';
+      /** The custom adapter's own `id`, since `chain` is fixed to the literal 'custom'. */
+      customChainId: string;
       timestamp: number;
       seq: number;
-      announcement: any;
+      announcement: unknown;
     };
 
 /**
@@ -193,7 +205,7 @@ function coerceTimestamp(value: unknown): number | undefined {
  * must not abort a scan that is otherwise fine, so it degrades to the fallback.
  */
 function resolveTimestamp(
-  adapter: ChainScannerAdapter<any, any, any, any>,
+  adapter: ChainScannerAdapter<unknown, unknown, unknown, unknown>,
   matched: unknown,
 ): number {
   if (typeof adapter.timestampOf === 'function') {
@@ -215,10 +227,10 @@ function resolveTimestamp(
   return UNKNOWN_TIMESTAMP;
 }
 
-async function* scanChainAdapterSource(
-  adapter: ChainScannerAdapter<any, any, any, any>,
-  source: AsyncIterable<any>,
-  keys: any,
+async function* scanChainAdapterSource<TItem, TKeys, TMatched>(
+  adapter: ChainScannerAdapter<TItem, TKeys, TMatched, unknown>,
+  source: AsyncIterable<TItem>,
+  keys: TKeys,
 ): AsyncGenerator<{ announcement: unknown; timestamp: number }> {
   const stream = adapter.scan(source, keys);
   const it = stream[Symbol.asyncIterator]();
@@ -285,16 +297,10 @@ export async function* scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnou
 
   if (input.adapters && Array.isArray(input.adapters)) {
     for (const item of input.adapters) {
-      const adapter: ChainScannerAdapter | undefined =
-        item.adapter ?? (item.id && item.scan ? item : undefined);
-      const source = item.source ?? item.input?.source;
-      const keys = item.keys ?? item.input?.keys;
-      if (adapter && source) {
-        tasks.push({
-          id: adapter.id,
-          gen: scanChainAdapterSource(adapter, source, keys),
-        });
-      }
+      tasks.push({
+        id: item.adapter.id,
+        gen: scanChainAdapterSource(item.adapter, item.source, item.keys),
+      });
     }
   }
 
@@ -334,12 +340,27 @@ export async function* scanAll(input: ScanAllInput): AsyncGenerator<MatchedAnnou
         const entry = iterators.get(idx)!;
         const seq = entry.seq++;
         pending.set(idx, entry.iter.next());
-        yield {
-          chain: entry.chain,
-          timestamp: result.value.timestamp,
-          seq,
-          announcement: result.value.announcement,
-        } as MatchedAnnouncement;
+        const isBuiltIn =
+          entry.chain === 'evm' ||
+          entry.chain === 'stellar' ||
+          entry.chain === 'solana' ||
+          entry.chain === 'ckb';
+        yield (
+          isBuiltIn
+            ? {
+                chain: entry.chain,
+                timestamp: result.value.timestamp,
+                seq,
+                announcement: result.value.announcement,
+              }
+            : {
+                chain: 'custom',
+                customChainId: entry.chain,
+                timestamp: result.value.timestamp,
+                seq,
+                announcement: result.value.announcement,
+              }
+        ) as MatchedAnnouncement;
       }
     }
   } finally {
