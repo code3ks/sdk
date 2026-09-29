@@ -333,7 +333,7 @@ async function* fetchAnnouncementsRange(
         // Use deterministic event identity for deduplication
         const identity = computeEventIdentity(event);
         if (!identity) continue;
-        
+
         if (seen.has(identity.id)) continue;
         seen.add(identity.id);
 
@@ -546,7 +546,7 @@ export async function* fetchAnnouncementsStream(
         // Use deterministic event identity for deduplication
         const identity = computeEventIdentity(event);
         if (!identity) continue;
-        
+
         if (seen.has(identity.id)) continue;
         seen.add(identity.id);
 

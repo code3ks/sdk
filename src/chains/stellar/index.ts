@@ -64,7 +64,11 @@ export { bytesToHex, hexToBytes } from './utils';
 /**
  * @internal
  */
-export { fetchAnnouncementsStream, parseAnnouncementEvent, computeEventIdentity } from './announcements';
+export {
+  fetchAnnouncementsStream,
+  parseAnnouncementEvent,
+  computeEventIdentity,
+} from './announcements';
 export { AnnouncementParseError, RetentionExceededError } from './announcements';
 export type { AnnouncementParseContext, EventIdentity } from './announcements';
 export type { FetchAnnouncementsOptions } from './announcements';
