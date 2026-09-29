@@ -6,11 +6,16 @@ on:
       - 'package.json'
   workflow_dispatch:
 
+# The release checklist this workflow automates (and the parts it cannot do for
+# you, such as the version bump and the changelog entry) lives in ./RELEASING.md.
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Required by `pnpm publish --provenance`: npm exchanges this token for a
+      # short-lived Sigstore certificate and stores the resulting attestation
+      # next to the tarball.
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +33,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test
+
+      # Release checklist step 3 in ./RELEASING.md: the API report in etc/ has to
+      # match the declarations the build just produced.
+      - name: Check the API report is up to date
+        run: pnpm api:check
+
+      # Release checklist step 4 in ./RELEASING.md: `pnpm pack --dry-run` inside
+      # `pnpm pack:check` fails if the tarball would carry anything other than
+      # the files `package.json`'s `files` field intends.
+      - name: Verify only intended files would be published
+        run: pnpm pack:check
 
       - name: Check if version is already published
         id: check
@@ -47,8 +63,21 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # `--provenance` makes npm sign the tarball and store the build provenance
+      # attestation with it, which is what lets a consumer verify that this
+      # workflow built the package from this commit.
       - name: Publish to npm
         if: steps.check.outputs.exists == 'false'
-        run: pnpm publish --access public --no-git-checks
+        run: pnpm publish --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # A publish that silently lost its attestation would be indistinguishable
+      # from one that never asked for it, so the release fails here instead.
+      # Release checklist step 5 in ./RELEASING.md.
+      - name: Verify the npm provenance attestation
+        if: steps.check.outputs.exists == 'false'
+        run: node scripts/release/verify-provenance.mjs
+        env:
+          PACKAGE_NAME: ${{ steps.check.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.check.outputs.version }}

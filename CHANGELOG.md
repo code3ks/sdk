@@ -39,6 +39,10 @@ All notable changes to the Wraith Protocol SDK will be documented in this file.
   - A timed-out attempt is aborted before the client retries or fails over. The fetch and the body read are raced against the deadline, so a `fetch` that ignores the abort signal cannot hang the request.
   - New `RPCTimeoutError` (`WRAITH/NETWORK/RPC_TIMEOUT`), exported from the package root, carries the URL, endpoint, attempt number, which timeout fired and its length. When every attempt fails, `RPCRetryExhaustedError` keeps the last attempt's error on `cause`.
   - `createRpcClient()` now marks an endpoint healthy only after the response body has been read, so an endpoint that sends headers and then stalls still trips the circuit breaker. See [`docs/chains/stellar-request-timeouts.md`](./docs/chains/stellar-request-timeouts.md).
+- **npm Publish Dry-Run and Provenance Verification** (issue #210): a release now lists and validates what it ships before it ships it, and confirms afterwards that what shipped carries an attestation for this build.
+  - New `pnpm pack:check` (`scripts/release/verify-pack.mjs`) runs `pnpm pack --dry-run --json` and fails when the tarball would carry anything the `files` field does not intend — tests, `src/`, CI configuration, dotfiles, secrets, source maps or temp directories — or when a path the `exports` map points at is missing from it. The `entrypoints` CI job and the publish workflow both run it.
+  - `pnpm publish` in the release workflow now passes `--provenance`, so npm signs the tarball and stores its build provenance attestation alongside it. `node scripts/release/verify-provenance.mjs` then fails the release when the registry has no provenance attestation for the version, when its subject digest is not the published `dist.integrity`, or when it names another repository or commit.
+  - The publish workflow runs `pnpm api:check` before uploading anything, and [`RELEASING.md`](./RELEASING.md) is the new release checklist for version, changelog and API report alignment.
 
 ### Performance
 

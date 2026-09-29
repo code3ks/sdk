@@ -46,14 +46,19 @@ Only maintainers with npm access may publish `@wraith-protocol/sdk`. Contributor
 
 Pre-publish checklist:
 
+[`RELEASING.md`](./RELEASING.md) is the canonical, step-by-step version of this checklist, and
+`.github/workflows/publish.yml` runs the steps that can be automated.
+
 1. Run `pnpm test`.
 2. Run `pnpm build`.
 3. Run `pnpm format:check`.
-4. Update the version according to the semver policy.
-5. Update `CHANGELOG.md`.
-6. Check bundle output for every exported entry point.
-7. Tag the release as `vX.Y.Z`.
-8. Publish to npm.
+4. Run `pnpm api:check`, so the API report in `etc/*.api.md` matches the built declarations.
+5. Run `pnpm pack:check`, so `pnpm pack --dry-run` only lists the files `package.json`'s `files` field intends.
+6. Update the version according to the semver policy.
+7. Update `CHANGELOG.md` with an entry for that same version.
+8. Check bundle output for every exported entry point.
+9. Tag the release as `vX.Y.Z`.
+10. Publish to npm with `pnpm publish --access public --no-git-checks --provenance`, then confirm the registry advertises the attestation with `node scripts/release/verify-provenance.mjs`.
 
 Release cadence target:
 

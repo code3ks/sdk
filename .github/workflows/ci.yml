@@ -45,6 +45,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:exports
+      # `pnpm pack --dry-run` over the same dist/: the tarball has to list only
+      # the files `package.json`'s `files` field intends.
+      - name: Verify only intended files would be published
+        run: pnpm pack:check
 
   compat:
     name: Compatibility matrix (${{ matrix.name }})

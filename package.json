@@ -66,7 +66,8 @@
     "test:leak": "vitest run test/leaks/scan-leak.test.ts",
     "test:heap-leak": "node --expose-gc ./node_modules/vitest/vitest.mjs run test/leaks/heap-snapshot.test.ts --pool=threads",
     "size": "size-limit",
-    "api:check": "api-extractor run --config api-extractor.json && api-extractor run --config api-extractor-evm.json && api-extractor run --config api-extractor-stellar.json && api-extractor run --config api-extractor-solana.json && api-extractor run --config api-extractor-ckb.json && api-extractor run --config api-extractor-vault.json"
+    "api:check": "api-extractor run --config api-extractor.json && api-extractor run --config api-extractor-evm.json && api-extractor run --config api-extractor-stellar.json && api-extractor run --config api-extractor-solana.json && api-extractor run --config api-extractor-ckb.json && api-extractor run --config api-extractor-vault.json",
+    "pack:check": "node scripts/release/verify-pack.mjs"
   },
   "size-limit": [
     {

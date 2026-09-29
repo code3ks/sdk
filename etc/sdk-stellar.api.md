@@ -40,6 +40,25 @@ export interface AnnouncementCache {
     setLastSeen(network: Network, ledger: number, cursor: string): Promise<void>;
 }
 
+// @public (undocumented)
+export interface AnnouncementParseContext {
+    // (undocumented)
+    endpoint?: string;
+    // (undocumented)
+    eventId?: unknown;
+}
+
+// @public
+export class AnnouncementParseError extends Error {
+    constructor(message: string, field: string, context?: AnnouncementParseContext);
+    // (undocumented)
+    readonly endpoint?: string;
+    // (undocumented)
+    readonly eventId?: string;
+    // (undocumented)
+    readonly field: string;
+}
+
 // @public
 export function assertViewTagBucket(bucket: number): void;
 
@@ -390,7 +409,7 @@ export type Network = 'testnet' | 'mainnet';
 // Warning: (ae-internal-missing-underscore) The name "parseAnnouncementEvent" should be prefixed with an underscore because the declaration is marked as @internal
 //
 // @internal
-export function parseAnnouncementEvent(event: Record<string, unknown>): Announcement | null;
+export function parseAnnouncementEvent(event: Record<string, unknown>, context?: AnnouncementParseContext): Announcement | null;
 
 // @public
 export interface PathStealthPaymentResult {
